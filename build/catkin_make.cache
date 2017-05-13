@@ -1,0 +1,2 @@
+tut_lab1
+-DCATKIN_DEVEL_PREFIX=/home/afro/rss_tutorial/devel -DCMAKE_INSTALL_PREFIX=/home/afro/rss_tutorial/install -G Unix Makefiles

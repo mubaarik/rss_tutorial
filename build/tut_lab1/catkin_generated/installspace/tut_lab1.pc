@@ -1,0 +1,8 @@
+prefix=/home/afro/rss_tutorial/install
+
+Name: tut_lab1
+Description: Description of tut_lab1
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/afro/rss_tutorial/install/lib 
+Requires: 
