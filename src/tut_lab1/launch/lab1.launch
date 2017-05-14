@@ -1,3 +1,4 @@
 <launch>
-  <node> pkg="tut_lab1" type="publisher.py" name="randomAgePublisher"</node>
+  <node pkg="tut_lab1" type="publisher.py" name="randomAgePublisher"/>
+  <node pkg="tut_lab1" type="sassyListener.py" name="sassyListener"/>
 </launch>
