@@ -1,0 +1,3 @@
+<launch>
+  <node> pkg="tut_lab1" type="publisher.py" name="randomAgePublisher"</node>
+</launch>
