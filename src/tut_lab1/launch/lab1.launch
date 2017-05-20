@@ -1,4 +1,7 @@
 <launch>
   <node pkg="tut_lab1" type="publisher.py" name="randomAgePublisher"/>
   <node pkg="tut_lab1" type="sassyListener.py" name="sassyListener"/>
+  <node pkg="turtlesim" type="turtlesim_node" name="turtlesim_node"/>
+  <node pkg="turtlesim" type="turtle_teleop_key" name="turtle_teleop_key"/>
+  <node pkg="tut_lab1" type="turleScanner.py" name="turleScanner"/>
 </launch>

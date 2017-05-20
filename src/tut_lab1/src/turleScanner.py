@@ -7,40 +7,45 @@ from sensor_msgs.msg import LaserScan
 from turtlesim.msg import Pose
 #import numpy functions for calculations
 import numpy as np
+#import tf
+import tf 
 
 class TurtleSimScanner:
 	def __init__(self):
-		self.mat_width = 10;
-		self.mat_heigh = 10;
+		self.mat_width = 11.0888891221;
+		self.mat_height = 11.0888891221;
 		self.turtlePose_sub = rospy.Subscriber("/turtle1/pose", Pose, self.poseCallback, queue_size = 1)
 		self.scan_pub = rospy.Publisher("turtle_scan", LaserScan, queue_size=1)
-		self.numb_ranges = 100
+		self.numb_ranges = 1000
 		self.min_angle = -np.pi/2.0
 		self.max_angle = np.pi/2.0
 		self.incr_angle = (self.max_angle-self.min_angle)/self.numb_ranges
-		self.max_range = 4;
+		self.max_range = 2;
+		self.tf_pub = tf.TransformBroadcaster()
+		self.frame = "turtle"
 	'''
 	@pose - position, direction, and velocity of the turtle recieved from the topic /turtle1/pose
 	publishes a laser scan center around the turtle
 	'''
 	def poseCallback(self, pose):
-		pose_data = pose.pose_data
+		pose_data = pose
+		self.transform(pose_data)
 		scan_msgs = LaserScan()
 
-		scan_msgs.Header.stamp = rospy.now()
-		scan_msgs.Header.frame_id = "base_link"
-		scan_msgs.angle_min = min_angle
- 		scan_msgs.angle_max = max_angle
-		scan_msgs.angle_increment = incr_angle
+		scan_msgs.header.stamp = rospy.Time.now()
+		scan_msgs.header.frame_id = self.frame
+		scan_msgs.angle_min = self.min_angle
+ 		scan_msgs.angle_max = self.max_angle
+		scan_msgs.angle_increment = self.incr_angle
 		scan_msgs.time_increment = 0
-		scan_msgs.scan_time = rospy.now()
+		#scan_msgs.scan_time = rospy.Time.now()
 		scan_msgs.range_min = .1
-		scan_msgs.range_max = max_range
+		scan_msgs.range_max = self.max_range
 		scanMapFunc = np.vectorize(self.scanMap)
-		scan_msgs.ranges = scanMapFunc(pose_data, range(self.numb_ranges))
-		scan_msgs.intensities = np.ones(self.numb_ranges)
+		scan_msgs.ranges = scanMapFunc(pose_data, range(self.numb_ranges)).tolist()
+		scan_msgs.intensities = (100*np.ones(self.numb_ranges)).tolist()
 
-		scan_pub.publish(scan_msgs)
+		self.scan_pub.publish(scan_msgs)
 	'''
 	@pose_data - class representing position, heading, and velocity of the turtle
 	@index - index to LaserScan().ranges, integer between 0, and num_ranges
@@ -54,24 +59,24 @@ class TurtleSimScanner:
 		#get the counter-clockwise heading direction of this range
 		range_theta = self.positiveDirection(bot_pos_theta+delta_theta)
 
-		if range_theta>7*np.pi/4.0 and range_theta<7*np.pi/4.0:
+		if range_theta>=7*np.pi/4.0 and range_theta<7*np.pi/4.0:
 			slope = abs(range_theta - 3*np.pi/2)
-			length = (self.height - pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(max_range,length)
-			return index_range
-		if range_theta=>3*np.pi/4.0 and range_theta<5*np.pi/4.0:
-			slope = abs(range_theta - np.pi)
-			length = (pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(max_range,length)
-			return index_range
-		if range_theta=>np.pi/4.0 and range_theta<3*np.pi/4.0:
-			slope = abs(range_theta - np.pi/2.0)
 			length = (pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(max_range,length)
+			index_range = min(self.max_range,length)
+			return index_range
+		if range_theta>=3*np.pi/4.0 and range_theta<5*np.pi/4.0:
+			slope = abs(range_theta - np.pi)
+			length = (self.mat_width -pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
+			index_range = min(self.max_range,length)
+			return index_range
+		if range_theta>=np.pi/4.0 and range_theta<3*np.pi/4.0:
+			slope = abs(range_theta - np.pi/2.0)
+			length = (self.mat_height - pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
+			index_range = min(self.max_range,length)
 			return index_range
 		slope = abs(min(range_theta,2*np.pi-range_theta))
-		length = (self.mat_width - pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
-		index_range = min(max_range,length)
+		length = (pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
+		index_range = min(self.max_range,length)
 		return index_range
 
 
@@ -82,6 +87,8 @@ class TurtleSimScanner:
 	def positiveDirection(self, angle):
 		theta = (angle%(2*np.pi)+2*np.pi)%(2*np.pi)
 		return theta;
+	def transform(self, pose):
+		self.tf_pub.sendTransform((pose.x, pose.y,0), tf.transformations.quaternion_from_euler(0,0,pose.theta), rospy.Time.now(), self.frame, "world")
 
 
 if __name__ == '__main__':
