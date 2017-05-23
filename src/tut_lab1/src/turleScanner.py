@@ -3,33 +3,48 @@
 import rospy 
 #import message type to publish
 from sensor_msgs.msg import LaserScan 
-#We will use the range 
+#We will use the turtle position 
 from turtlesim.msg import Pose
 #import numpy functions for calculations
 import numpy as np
 #import tf
-import tf 
+#import tf 
 
 class TurtleSimScanner:
 	def __init__(self):
+		#Height and the width of the turtle mat
 		self.mat_width = 11.0888891221;
 		self.mat_height = 11.0888891221;
+		#Subscribe to the turtle pose
 		self.turtlePose_sub = rospy.Subscriber("/turtle1/pose", Pose, self.poseCallback, queue_size = 1)
+		#publish the scan message
 		self.scan_pub = rospy.Publisher("turtle_scan", LaserScan, queue_size=1)
+		#number of ranges in the scan
 		self.numb_ranges = 1000
+		#The max minimum and maximum angles of the scan arc
 		self.min_angle = -np.pi/2.0
 		self.max_angle = np.pi/2.0
+		#Angle resolution
 		self.incr_angle = (self.max_angle-self.min_angle)/self.numb_ranges
-		self.max_range = 2;
-		self.tf_pub = tf.TransformBroadcaster()
+		#Maximum range of the scan
+		self.max_range = 4.0;
+		#Coordinate transform publishers
+		#self.tf_pub = tf.TransformBroadcaster()
+		#self.world_pub = tf.TransformBroadcaster()
+		#Frame id of the header of the scan
 		self.frame = "turtle"
+		#The rate of the turtle_scan topic(determine by rostopic hz /turtle1/pose)
+		self.frequency = 62.5
+
 	'''
 	@pose - position, direction, and velocity of the turtle recieved from the topic /turtle1/pose
 	publishes a laser scan center around the turtle
 	'''
 	def poseCallback(self, pose):
 		pose_data = pose
-		self.transform(pose_data)
+		#self.worldToTurtleWold()
+		#self.transform(pose_data)
+
 		scan_msgs = LaserScan()
 
 		scan_msgs.header.stamp = rospy.Time.now()
@@ -37,9 +52,9 @@ class TurtleSimScanner:
 		scan_msgs.angle_min = self.min_angle
  		scan_msgs.angle_max = self.max_angle
 		scan_msgs.angle_increment = self.incr_angle
-		scan_msgs.time_increment = 0
+		scan_msgs.time_increment = 1.0/(self.frequency*self.numb_ranges)
 		#scan_msgs.scan_time = rospy.Time.now()
-		scan_msgs.range_min = .1
+		scan_msgs.range_min = .01
 		scan_msgs.range_max = self.max_range
 		scanMapFunc = np.vectorize(self.scanMap)
 		scan_msgs.ranges = scanMapFunc(pose_data, range(self.numb_ranges)).tolist()
@@ -58,25 +73,39 @@ class TurtleSimScanner:
 		delta_theta = self.incr_angle*(index - self.numb_ranges/2.0)
 		#get the counter-clockwise heading direction of this range
 		range_theta = self.positiveDirection(bot_pos_theta+delta_theta)
-
-		if range_theta>=7*np.pi/4.0 and range_theta<7*np.pi/4.0:
-			slope = abs(range_theta - 3*np.pi/2)
-			length = (pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(self.max_range,length)
+		range_limit = self.max_range-.00001
+		#detecting the edges of the turtle mat
+		if range_theta>=5*np.pi/4.0 and range_theta<7*np.pi/4.0:
+			#angle deviation from the right angle to the edge of the mat
+			slope = np.pi/2.0-abs(range_theta - 3*np.pi/2)
+			length = (pose_data.y)
+			if slope>0:
+				length = (pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
+			index_range = min(range_limit,length)
 			return index_range
+
 		if range_theta>=3*np.pi/4.0 and range_theta<5*np.pi/4.0:
-			slope = abs(range_theta - np.pi)
-			length = (self.mat_width -pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(self.max_range,length)
+			#angle deviation from the right angle to the edge of the mat
+			slope = np.pi/2.0-abs(range_theta - np.pi)
+			length = (pose_data.x)
+			if slope>0:
+				length = (pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
+			index_range = min(range_limit,length)
 			return index_range
 		if range_theta>=np.pi/4.0 and range_theta<3*np.pi/4.0:
-			slope = abs(range_theta - np.pi/2.0)
-			length = (self.mat_height - pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
-			index_range = min(self.max_range,length)
+			#angle deviation from the right angle to the edge of the mat
+			slope = np.pi/2.0-abs(range_theta - np.pi/2.0)
+			length = (self.mat_height - pose_data.y)
+			if slope>0:
+				length = (self.mat_height - pose_data.y)*np.sin(np.pi/2.0)/np.sin(slope)
+			index_range = min(range_limit,length)
 			return index_range
-		slope = abs(min(range_theta,2*np.pi-range_theta))
-		length = (pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
-		index_range = min(self.max_range,length)
+		#angle deviation from the right angle to the edge of the mat
+		slope = np.pi/2.0-abs(min(range_theta,2*np.pi-range_theta))
+		length = (self.mat_width-pose_data.x)
+		if slope>0:
+			length = (self.mat_width-pose_data.x)*np.sin(np.pi/2.0)/np.sin(slope)
+		index_range = min(range_limit,length)
 		return index_range
 
 
@@ -85,10 +114,15 @@ class TurtleSimScanner:
 	@return - 0<=angle in radians<=2*pi -- representing counter-clockwise of this angle
 	'''
 	def positiveDirection(self, angle):
-		theta = (angle%(2*np.pi)+2*np.pi)%(2*np.pi)
+		theta = (angle)%(2*np.pi)
 		return theta;
-	def transform(self, pose):
-		self.tf_pub.sendTransform((pose.x, pose.y,0), tf.transformations.quaternion_from_euler(0,0,pose.theta), rospy.Time.now(), self.frame, "world")
+	#Publish coordinate transform from world to the turtle mat 
+	#def worldToTurtleWold(self):
+	#	self.world_pub.sendTransform((5.0, 5.0,0.0), tf.transformations.quaternion_from_euler(0,0,np.pi), rospy.Time.now(), "turtle_world", "world")
+	#coordinate transform from turtle mat to turtle pose
+	#def transform(self, pose):
+	#	theta = self.positiveDirection(pose.theta)
+	#	self.tf_pub.sendTransform((pose.x, pose.y,0), tf.transformations.quaternion_from_euler(0,0,theta), rospy.Time.now(), self.frame, "turtle_world")
 
 
 if __name__ == '__main__':
