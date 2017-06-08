@@ -28,9 +28,6 @@ class TurtleSimScanner:
 		self.incr_angle = (self.max_angle-self.min_angle)/self.numb_ranges
 		#Maximum range of the scan
 		self.max_range = 4.0;
-		#Coordinate transform publishers
-		#self.tf_pub = tf.TransformBroadcaster()
-		#self.world_pub = tf.TransformBroadcaster()
 		#Frame id of the header of the scan
 		self.frame = "turtle"
 		#The rate of the turtle_scan topic(determine by rostopic hz /turtle1/pose)
@@ -116,14 +113,7 @@ class TurtleSimScanner:
 	def positiveDirection(self, angle):
 		theta = (angle)%(2*np.pi)
 		return theta;
-	#Publish coordinate transform from world to the turtle mat 
-	#def worldToTurtleWold(self):
-	#	self.world_pub.sendTransform((5.0, 5.0,0.0), tf.transformations.quaternion_from_euler(0,0,np.pi), rospy.Time.now(), "turtle_world", "world")
-	#coordinate transform from turtle mat to turtle pose
-	#def transform(self, pose):
-	#	theta = self.positiveDirection(pose.theta)
-	#	self.tf_pub.sendTransform((pose.x, pose.y,0), tf.transformations.quaternion_from_euler(0,0,theta), rospy.Time.now(), self.frame, "turtle_world")
-
+	
 
 if __name__ == '__main__':
 	rospy.init_node("TurtleSimScanPublisher")
